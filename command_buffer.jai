@@ -269,7 +269,7 @@ gpu_draw_indexed_instanced :: (cmd: Gpu_Command_Buffer, vertex_data: Gpu_Ptr, in
     vkCmdSetScissor(vk_cmd_buff, 0, 1, *render_area);
 
     // for now, vertex buffer is bound via push_consts.
-    vkCmdPushConstants(vk_cmd_buff, vk_pipeline_layout, .ALL, 0, size_of(VkDeviceAddress), *vertex_data);
+    vkCmdPushConstants(vk_cmd_buff, vk_pipeline_layout, .VERTEX_BIT, 0, size_of(VkDeviceAddress), *vertex_data);
 
     index_buffer := get_buffer(index_data);
     vkCmdBindIndexBuffer(vk_cmd_buff, index_buffer, 0, .UINT32);

@@ -142,6 +142,15 @@ Pipeline_Type :: enum {
     COMPUTE;
 }
 
+Shader_Stage :: enum {
+    VERTEX  :: 0x1;
+    PIXEL   :: 0x10;
+    COMPUTE :: 0x20;
+    //MESH    :: 0x80;
+}
+
+NUM_SHADER_STAGES :: #run enum_values_as_enum(Shader_Stage).count;
+
 Pipeline :: struct {
     type: Pipeline_Type;
 
@@ -153,17 +162,21 @@ vk_pipeline_layout: VkPipelineLayout;
 live_pipelines: Pool(Gpu_Pipeline, Pipeline);
 
 create_global_pipeline_layout :: () {
-    push_const_range := VkPushConstantRange.{
-        offset = 0,
-        size = size_of(VkDeviceAddress),
-        stageFlags = .ALL,
-    };
+    push_const_ranges: [NUM_SHADER_STAGES] VkPushConstantRange;
+    ALL_STAGES :: #run enum_values_as_enum(Shader_Stage);
+    for ALL_STAGES {
+        push_const_ranges[it_index] = .{
+            offset = it_index.(u32) * 4,
+            size = size_of(VkDeviceAddress),
+            stageFlags = it.(VkShaderStageFlags),
+        };
+    }
 
     create_info := VkPipelineLayoutCreateInfo.{
         setLayoutCount = 1,
         pSetLayouts = *bindless_set_layout,
-        pushConstantRangeCount = 1,
-        pPushConstantRanges = *push_const_range,
+        pushConstantRangeCount = push_const_ranges.count.(u32),
+        pPushConstantRanges = push_const_ranges.data,
     };
     vk_result := vkCreatePipelineLayout(vk_device, *create_info, null, *vk_pipeline_layout);
     assert_vk_result(vk_result);
