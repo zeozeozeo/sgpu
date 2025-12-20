@@ -18,6 +18,11 @@ main :: () {
         blend_state = *blend_state,
     };
 
+    depth_desc := Gpu_Depth_Stencil_Desc.{
+        depth_test = .NEVER,
+        depth_mode = .NONE,
+    };
+
     graphics_pipeline := gpu_create_graphics_pipeline(vertex_spv, pixel_spv, raster_desc);
 
     texture_desc := Gpu_Texture_Desc.{
@@ -63,9 +68,8 @@ main :: () {
     pixel_data, pixel_gpu := gpu_arena_alloc(*gpu_arena, [3] float);
     pixel_data.* = .[1., 0., 1.];
 
-    gpu_capture_start();
-
     cmd_buff := gpu_start_command_recording(main_queue);
+
     {
         render_desc := Gpu_Render_Pass_Desc.{
             color_targets = .[
@@ -80,6 +84,8 @@ main :: () {
         gpu_begin_render_pass(cmd_buff, render_desc);
 
         gpu_set_pipeline(cmd_buff, graphics_pipeline);
+        gpu_set_depth_stencil_state(cmd_buff, depth_desc);
+
         gpu_draw_indexed_instanced(cmd_buff, vertex_params_gpu, pixel_gpu, index_gpu, 6, 1);
 
         gpu_end_render_pass(cmd_buff);
@@ -89,8 +95,6 @@ main :: () {
 
     gpu_wait_idle();
 
-    gpu_capture_end();
-
     gpu_free_arena(gpu_arena);
     gpu_free_pipeline(graphics_pipeline);
     gpu_free(texture);
@@ -98,6 +102,6 @@ main :: () {
     gpu_shutdown();
 }
 
-#import,file "../../simp_gpu/module.jai"(ENABLE_RENDER_CAPTURE = true);
+#import,file "../../simp_gpu/module.jai"(VALIDATION = false, ENABLE_RENDER_CAPTURE = false);
 #import "File";
 #import "Basic";

@@ -5,10 +5,6 @@ gpu_create_compute_pipeline :: (spirv: [] u8) -> Gpu_Pipeline {
 }
 
 gpu_create_graphics_pipeline :: (vertex_spirv: [] u8, pixel_spirv: [] u8, raster_desc: Gpu_Raster_Desc) -> Gpu_Pipeline {
-    if vk_pipeline_layout == VK_NULL_HANDLE {
-        create_global_pipeline_layout();
-    }
-
     shader_stages := VkPipelineShaderStageCreateInfo.[
         create_shader_stage(vertex_spirv, .VERTEX_BIT),
         create_shader_stage(pixel_spirv, .FRAGMENT_BIT)
@@ -87,7 +83,7 @@ gpu_create_graphics_pipeline :: (vertex_spirv: [] u8, pixel_spirv: [] u8, raster
         // Fill some more space which can be filled by optional dynamic state:
         .MAX_ENUM, .MAX_ENUM, .MAX_ENUM, .MAX_ENUM, .MAX_ENUM, .MAX_ENUM,
     ];
-    num_dynamic_states := array_find(dynamic_states, .MAX_ENUM);
+    found, num_dynamic_states := array_find(dynamic_states, .MAX_ENUM);
 
     dynamic_state := VkPipelineDynamicStateCreateInfo.{
         dynamicStateCount = num_dynamic_states.(u32),

@@ -146,8 +146,41 @@ gpu_copy_from_texture :: (cmd: Gpu_Command_Buffer, dest: Gpu_Ptr, src: Gpu_Ptr, 
 }
 
 
-gpu_barrier :: (cmd: Gpu_Command_Buffer, before: Stage, after: Stage) {
+gpu_barrier :: (cmd: Gpu_Command_Buffer, before: Stage, after: Stage, hazard: Hazard_Flags = .NONE) {
+    cmd_buff := get_cmd_buff(cmd);
 
+    // the barrier model in this api is based on the assumption that most gpu caches are coherent in the modern day.
+    // Thus eliminating the need for the vast majority of memory barriers and simplifying the barrier model to execution only.
+    // I have yet to thoroughly test this and it is possible I may need to pivot that idea. However, adding resource state
+    // tracking is a huge api bloat so I plan to try this first.
+    memory_barrier := VkMemoryBarrier2.{
+        srcStageMask = before.(VkPipelineStageFlags2),
+        dstStageMask = after.(VkPipelineStageFlags2),
+    };
+
+    if hazard != 0 {
+        // #todo: this could be more fine-grained but this covers all the cases where the gpu
+        // could write to these buffers and should have little performance impact.
+        // needs testing.
+        memory_barrier.srcAccessMask |= VK_ACCESS_2_TRANSFER_WRITE_BIT;
+        memory_barrier.srcAccessMask |= VK_ACCESS_2_SHADER_WRITE_BIT;
+    }
+    if hazard & .DESCRIPTORS != 0 {
+        memory_barrier.dstAccessMask |= VK_ACCESS_2_DESCRIPTOR_BUFFER_READ_BIT_EXT;
+    }
+    if hazard & .DRAW_ARGS != 0 {
+        memory_barrier.dstAccessMask |= VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
+    }
+    if hazard & .DEPTH_STENCIL != 0 {
+        memory_barrier.dstAccessMask |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT_KHR;
+    }
+
+    dep_info := VkDependencyInfo.{
+        memoryBarrierCount = 1,
+        pMemoryBarriers = *memory_barrier,
+    };
+
+    vkCmdPipelineBarrier2(cmd_buff, *dep_info);
 }
 
 gpu_signal_after :: (cmd: Gpu_Command_Buffer, before: Stage, ptr: Gpu_Ptr, value: u64, signal: Signal) {
@@ -170,8 +203,23 @@ gpu_set_pipeline :: (cmd: Gpu_Command_Buffer, pipeline_handle: Gpu_Pipeline) {
     bind_descriptor_buffer(vk_cmd_buff);
 }
 
-gpu_set_depth_stencil_state :: (cmd: Gpu_Command_Buffer, state: Gpu_Depth_Stencil_State) {
+gpu_set_depth_stencil_state :: (cmd: Gpu_Command_Buffer, desc: Gpu_Depth_Stencil_Desc) {
+    vk_cmd_buff := get_cmd_buff(cmd);
+    if desc.depth_test != .NEVER {
+        vkCmdSetDepthTestEnable(vk_cmd_buff, VK_TRUE);
+        vkCmdSetDepthCompareOp(vk_cmd_buff, desc.depth_test.(VkCompareOp));
+    } else {
+        vkCmdSetDepthTestEnable(vk_cmd_buff, VK_FALSE);
+    }
 
+    if desc.depth_mode & .WRITE != 0 {
+        vkCmdSetDepthWriteEnable(vk_cmd_buff, VK_TRUE);
+        vkCmdSetDepthBias(vk_cmd_buff, desc.depth_bias, desc.depth_bias_clamp, desc.depth_bias_slope_factor);
+    } else {
+        vkCmdSetDepthWriteEnable(vk_cmd_buff, VK_FALSE);
+    }
+
+    // #todo: set stencil state
 }
 
 gpu_set_blend_state :: (cmd: Gpu_Command_Buffer, state: Gpu_Blend_State) {

@@ -12,7 +12,7 @@ gpu_create_texture :: (desc: Gpu_Texture_Desc) -> Gpu_Texture {
         sharingMode = .CONCURRENT,
         queueFamilyIndexCount = all_queue_family_indices.count.(u32),
         pQueueFamilyIndices = all_queue_family_indices.data,
-        initialLayout = .GENERAL,
+        initialLayout = .UNDEFINED,
     };
 
     alloc_create_info := VmaAllocationCreateInfo.{
@@ -27,6 +27,37 @@ gpu_create_texture :: (desc: Gpu_Texture_Desc) -> Gpu_Texture {
     assert_vk_result(vk_result);
 
     handle := pool_add(*live_textures, .{desc = desc, vk_image = image, allocation = alloc});
+    
+    // transition the image to the GENERAL layout.
+    // #todo: use the transfer queue for this?
+    transfer_queue := gpu_get_queue(.MAIN, 0);
+    cmd_buff := gpu_start_command_recording(transfer_queue);
+    vk_cmd_buff := get_cmd_buff(cmd_buff);
+
+    // transition the image to be used in shaders.
+    image_barrier := VkImageMemoryBarrier2.{
+        image = image,
+        srcStageMask = cast(u64) VkPipelineStageFlags.TOP_OF_PIPE_BIT,
+        dstStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT,
+        subresourceRange = .{
+            baseMipLevel = 0,
+            baseArrayLayer = 0,
+            levelCount = desc.mip_count,
+            layerCount = desc.layer_count,
+            aspectMask = get_image_aspect_mask(desc.format),
+        },
+        oldLayout = .UNDEFINED,
+        newLayout = .GENERAL,
+    };
+
+    dep_info := VkDependencyInfo.{
+        imageMemoryBarrierCount = 1,
+        pImageMemoryBarriers = *image_barrier,
+    };
+
+    vkCmdPipelineBarrier2(vk_cmd_buff, *dep_info);
+
+    gpu_submit(transfer_queue, cmd_buff);
 
     return handle;
 }

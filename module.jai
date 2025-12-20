@@ -30,14 +30,14 @@ Depth_Flags :: enum_flags u8 {
 }
 
 Op :: enum {
-    NEVER;
-    LESS;
-    EQUAL;
-    LESS_EQUAL;
-    GREATER;
-    NOT_EQUAL;
-    GREATER_EQUAL;
-    ALWAYS;
+    NEVER            :: 0;
+    LESS             :: 1;
+    EQUAL            :: 2;
+    LESS_OR_EQUAL    :: 3;
+    GREATER          :: 4;
+    NOT_EQUAL        :: 5;
+    GREATER_OR_EQUAL :: 6;
+    ALWAYS           :: 7;
 }
 
 Load_Op :: enum {
@@ -277,16 +277,30 @@ Usage_Flags :: enum_flags {
 }
 
 Stage :: enum {
-    TRANSFER;
-    COMPUTE;
-    RASTER_COLOR_OUT;
-    PIXEL_SHADER;
-    VERTEX_SHADER;
-    // #todo:
+    TOP_OF_PIPE             :: 0x00000001;
+    DRAW_INDIRECT           :: 0x00000002;
+    VERTEX_INPUT            :: 0x00000004;
+    VERTEX_SHADER           :: 0x00000008;
+    PIXEL_SHADER            :: 0x00000080;
+    MESH_SHADER             :: 0x00100000;
+    EARLY_FRAGMENT_TESTS    :: 0x00000100;
+    LATE_FRAGMENT_TESTS     :: 0x00000200;
+    COLOR_ATTACHMENT_OUTPUT :: 0x00000400;
+    COMPUTE_SHADER          :: 0x00000800;
+    TRANSFER                :: 0x00001000;
+    BOTTOM_OF_PIPE          :: 0x00002000;
+    HOST                    :: 0x00004000;
+    ALL                     :: 0x00010000;
 }
 
-Hazard_Flags :: enum {
-    // #todo:
+Hazard_Flags :: enum_flags {
+    NONE          :: 0x0;
+    // Flushes (GPU) writes to indirect draw args.
+    DRAW_ARGS     :: 0x1;
+    // Flushes (GPU) writes to descriptor buffer.
+    DESCRIPTORS   :: 0x2;
+    // Flushes (GPU) writes to depth and stencil buffers.
+    DEPTH_STENCIL :: 0x4;
 }
 
 Signal :: enum {
@@ -403,6 +417,7 @@ gpu_init :: () {
     create_instance();
     create_device();
     create_descriptor_buffer();
+    create_global_pipeline_layout();
 }
 
 gpu_shutdown :: () {
@@ -563,6 +578,7 @@ create_instance :: () {
         enabled_validation_features := VkValidationFeatureEnableEXT.[
             //.GPU_ASSISTED_EXT,
             //.GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT,
+            .SYNCHRONIZATION_VALIDATION_EXT,
         ];
 
         validation_features := VkValidationFeaturesEXT.{
@@ -729,6 +745,12 @@ create_device :: () {
             descriptorBufferImageLayoutIgnored = VK_TRUE,
         };
         chain = *descriptor_buffer;
+
+        synchronization2 := VkPhysicalDeviceSynchronization2Features.{
+            pNext = chain,
+            synchronization2 = VK_TRUE,
+        };
+        chain = *synchronization2;
 
         vk12_features := VkPhysicalDeviceVulkan12Features.{
             pNext = chain,
