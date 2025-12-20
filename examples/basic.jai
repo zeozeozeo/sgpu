@@ -53,6 +53,6 @@ main :: () {
     gpu_shutdown();
 }
 
-#load "common.jai";
-
+#import,file "../../simp_gpu/module.jai"(VALIDATION = true);
 #import "Basic";
+

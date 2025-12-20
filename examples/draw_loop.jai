@@ -31,33 +31,36 @@ main :: () {
         x: float;
         y: float;
     }
-    vertex_buffer, vertex_gpu := gpu_malloc(4 * size_of(Vertex2D));
-    vertex_buffer.(*[4] Vertex2D).* = .[
+
+    gpu_arena := gpu_make_arena(1024);
+
+    vertex_buffer, vertex_gpu := gpu_arena_alloc(*gpu_arena, [4] Vertex2D);
+    vertex_buffer.* = .[
         .{0.5, 0.5},
         .{0.5, -0.5},
         .{-0.5, -0.5},
         .{-0.5, +0.5},
     ];
-    vertex_colors, colors_gpu := gpu_malloc(4 * 3 * size_of(float));
-    vertex_colors.(*[12] float).* = .[
+
+    vertex_colors, colors_gpu := gpu_arena_alloc(*gpu_arena, [12] float);
+    vertex_colors.* = .[
         1., 0., 0.,
         0., 1., 0.,
         0., 0., 1.,
         1., 1., 1.,
     ];
 
-    param_block, vertex_params_gpu := gpu_malloc(2 * size_of(Gpu_Ptr));
-    param_block.(*Gpu_Ptr)[0] = vertex_gpu;
-    param_block.(*Gpu_Ptr)[1] = colors_gpu;
+    param_block, vertex_params_gpu := gpu_arena_alloc(*gpu_arena, [2] Gpu_Ptr);
+    param_block.* = .[vertex_gpu, colors_gpu];
 
-    index_buffer, index_gpu := gpu_malloc(6 * size_of(u32));
-    index_buffer.(*[6] u32).* = .[
+    index_buffer, index_gpu := gpu_arena_alloc(*gpu_arena, [6] u32);
+    index_buffer.* = .[
         0, 3, 1,
         1, 3, 2,
     ];
 
-    pixel_data, pixel_gpu := gpu_malloc(3 * size_of(float));
-    pixel_data.(*[3] float).* = .[1., 0., 1.];
+    pixel_data, pixel_gpu := gpu_arena_alloc(*gpu_arena, [3] float);
+    pixel_data.* = .[1., 0., 1.];
 
     semaphore := gpu_create_semaphore(0);
 
@@ -96,13 +99,12 @@ main :: () {
 
     gpu_wait_idle();
 
-    gpu_free(vertex_buffer);
-    gpu_free(index_buffer);
+    gpu_free_arena(gpu_arena);
     gpu_free_pipeline(graphics_pipeline);
     gpu_free(texture);
 
     gpu_shutdown();
 }
 
-#load "common.jai";
+#import,file "../../simp_gpu/module.jai"(VALIDATION = true);
 #import "Basic";

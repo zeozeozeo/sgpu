@@ -1,1 +1,0 @@
-#import,file "../../simp_gpu/module.jai"(ENABLE_RENDER_CAPTURE = true);

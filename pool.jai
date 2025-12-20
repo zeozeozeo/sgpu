@@ -1,3 +1,5 @@
+#scope_module
+
 Pool :: struct(Handle_Type: Type, Value_Type: Type) {
     values: [..] Value_Type;
     free_list: [..] s64;

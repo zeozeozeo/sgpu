@@ -492,6 +492,7 @@ gpu_destroy_semaphore :: (semaphore_handle: Gpu_Semaphore) {
     vkDestroySemaphore(vk_device, semaphore.vk_semaphore, null);
 }
 
+#load "pool.jai";
 #load "memory.jai";
 #load "command_buffer.jai";
 #load "textures.jai";
@@ -499,6 +500,7 @@ gpu_destroy_semaphore :: (semaphore_handle: Gpu_Semaphore) {
 #load "pipeline.jai";
 #load "shader_compiler.jai";
 #load "render_capture.jai";
+#load "gpu_arena.jai";
 
 #scope_module
 
@@ -955,5 +957,3 @@ vkCmdEndRenderingKHR : PFN_vkCmdEndRenderingKHR;
 #import "Math";
 #import "Bucket_Array";
 #import "Atomics";
-
-#load "pool.jai";
