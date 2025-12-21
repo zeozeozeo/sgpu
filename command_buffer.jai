@@ -226,11 +226,13 @@ gpu_set_blend_state :: (cmd: Gpu_Command_Buffer, state: Gpu_Blend_State) {
 
 }
 
-gpu_dispatch :: (cmd: Gpu_Command_Buffer, dimensions: [3] u32) {
-
+gpu_dispatch :: (cmd: Gpu_Command_Buffer, data: Gpu_Ptr, dimensions: [3] u32) {
+    vk_cmd_buff := get_cmd_buff(cmd);
+    vkCmdPushConstants(vk_cmd_buff, vk_pipeline_layout, .COMPUTE_BIT, 2 * size_of(Gpu_Ptr), size_of(Gpu_Ptr), *data);
+    vkCmdDispatch(vk_cmd_buff, dimensions[0], dimensions[1], dimensions[2]);
 }
 
-gpu_indirect_dispatch :: (cmd: Gpu_Command_Buffer, dimensions_gpu: Gpu_Ptr) {
+gpu_indirect_dispatch :: (cmd: Gpu_Command_Buffer, data: Gpu_Ptr, dimensions_gpu: Gpu_Ptr) {
 
 }
 

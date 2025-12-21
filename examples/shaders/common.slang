@@ -13,3 +13,11 @@ struct PixelParams<T> {
     [ForceInline]
     T* get() { return data; }
 };
+
+struct ComputeParams<T> {
+    [[vk::offset(16)]]
+    T* data;
+
+    [ForceInline]
+    T* get() { return data; }
+};

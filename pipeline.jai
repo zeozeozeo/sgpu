@@ -1,7 +1,21 @@
 #scope_export
 
 gpu_create_compute_pipeline :: (spirv: [] u8) -> Gpu_Pipeline {
-    return 0;
+    stage := create_shader_stage(spirv, .COMPUTE_BIT);
+
+    create_info := VkComputePipelineCreateInfo.{
+        stage = stage,
+        layout = vk_pipeline_layout,
+    };
+
+    vk_pipeline: VkPipeline;
+    vk_result := vkCreateComputePipelines(vk_device, null, 1, *create_info, null, *vk_pipeline);
+    assert_vk_result(vk_result);
+
+    vkDestroyShaderModule(vk_device, stage.module, null);
+
+    handle := pool_add(*live_pipelines, .{.COMPUTE, vk_pipeline});
+    return handle;
 }
 
 gpu_create_graphics_pipeline :: (vertex_spirv: [] u8, pixel_spirv: [] u8, raster_desc: Gpu_Raster_Desc) -> Gpu_Pipeline {
