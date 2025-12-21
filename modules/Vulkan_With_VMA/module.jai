@@ -104,6 +104,7 @@ VK_API_VERSION_PATCH   :: (version: u32) -> u32 { return version & 0xfff; }
     }
 } else #if OS == .LINUX {
     #load "generated_linux.jai";
+    #load "linux_extras.jai";
 
     #if MEMORY_ALLOCATOR_DEBUG {
         vkmemalloc :: #library,no_dll "libs/VkMemAlloc_DEBUG";

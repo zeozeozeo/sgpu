@@ -516,6 +516,7 @@ gpu_destroy_semaphore :: (semaphore_handle: Gpu_Semaphore) {
 #load "shader_compiler.jai";
 #load "render_capture.jai";
 #load "gpu_arena.jai";
+#load "swapchain.jai";
 
 #scope_module
 
@@ -533,7 +534,7 @@ create_instance :: () {
     array_add(*optional_extensions, VK_KHR_SURFACE_EXTENSION_NAME);
     array_add(*optional_extensions, "VK_KHR_win32_surface");
     array_add(*optional_extensions, "VK_KHR_wayland_surface");
-    array_add(*optional_extensions, "VK_KHR_x11_surface");
+    array_add(*optional_extensions, "VK_KHR_xlib_surface");
 
     // find extensions
     enabled_extensions: [..] *u8;
@@ -951,6 +952,10 @@ vkCmdEndRenderingKHR : PFN_vkCmdEndRenderingKHR;
     vk_validation_callback :: (flags: VkDebugReportFlagsEXT, objType: VkDebugReportObjectTypeEXT, obj: u64, location: u64, code: s32, layerPrefix: *u8, msg: *u8, userData: *void) -> VkBool32 #c_call {
         new_context: #Context;
         push_context new_context {
+            msg_string := to_string(msg);
+            // ignore messages about missing usage flag INDEX_BUFFER_BIT.
+            if contains(msg_string, "requires VK_BUFFER_USAGE_2_INDEX_BUFFER_BIT") then return VK_FALSE;
+
             log("Vulkan Validation: %", to_string(msg));
         }
         

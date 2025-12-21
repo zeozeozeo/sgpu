@@ -51,6 +51,17 @@
                 "LD_LIBRARY_PATH": "${workspaceFolder}/examples/bin"
             },
             "cwd": "${workspaceFolder}/examples/bin"
+        },
+        {
+            "name": "Window - Unix",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/examples/bin/window",
+            "args": [ ],
+            "env": {
+                "LD_LIBRARY_PATH": "${workspaceFolder}/examples/bin"
+            },
+            "cwd": "${workspaceFolder}/examples/bin"
         }
     ]
 }
