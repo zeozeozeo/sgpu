@@ -36,6 +36,11 @@ gpu_init_swapchain :: (native_window: u64, window_type: Native_Window_Type) {
     frame_timeline = gpu_create_semaphore(0);
 }
 
+gpu_swapchain_resize :: () {
+    vkQueueWaitIdle(get_queue(gpu_get_queue(.MAIN, 0)).vk_queue);
+    recreate_swapchain();
+}
+
 gpu_destroy_swapchain :: () {
     for acquire_semaphores {
         vkDestroySemaphore(vk_device, it, null);
@@ -54,11 +59,18 @@ gpu_swapchain_acquire :: () -> Gpu_Texture_View {
     acquire_semaphore_index = (frame_timeline_cpu + 1) % MAX_FRAMES_IN_FLIGHT;
     acquire_semaphore := acquire_semaphores[acquire_semaphore_index];
     vk_result := vkAcquireNextImageKHR(vk_device, vk_swapchain, U64_MAX, acquire_semaphore, null, *current_swapchain_index);
-    assert_vk_result(vk_result);
+    if vk_result == .ERROR_OUT_OF_DATE_KHR || vk_result == .SUBOPTIMAL_KHR {
+        gpu_swapchain_resize();
+        vk_result = vkAcquireNextImageKHR(vk_device, vk_swapchain, U64_MAX, acquire_semaphore, null, *current_swapchain_index);
+    }
+    
+    if vk_result == .SUCCESS {
+        frame_timeline_cpu += 1;
 
-    frame_timeline_cpu += 1;
+        return swapchain_views[current_swapchain_index];
+    }
 
-    return swapchain_views[current_swapchain_index];
+    return 0;
 }
 
 gpu_present :: () {
@@ -73,7 +85,8 @@ gpu_present :: () {
     };
 
     vk_result := vkQueuePresentKHR(get_queue(gpu_get_queue(.MAIN, 0)).vk_queue, *present_info);
-    //assert_vk_result(vk_result);
+    // resizes are handled during swapchain image acquisition so ignore these error codes here.
+    assert(vk_result == .SUCCESS || vk_result == .SUBOPTIMAL_KHR || vk_result == .ERROR_OUT_OF_DATE_KHR);
 }
 
 gpu_frame_timeline :: () -> Gpu_Semaphore {
@@ -100,7 +113,7 @@ recreate_swapchain :: () {
         imageExtent = surface_extent,
         imageArrayLayers = 1,
         imageSharingMode = .EXCLUSIVE,
-        imageUsage = .COLOR_ATTACHMENT_BIT,
+        imageUsage = .COLOR_ATTACHMENT_BIT | .TRANSFER_DST_BIT,
         minImageCount = 3,
         queueFamilyIndexCount = 1,
         pQueueFamilyIndices = *get_queue(gpu_get_queue(.MAIN, 0)).vk_family,
@@ -143,12 +156,16 @@ recreate_swapchain :: () {
             },
         };
 
-        vk_view: VkImageView;
-        vk_result := vkCreateImageView(vk_device, *view_create_info, null, *vk_view);
+        swapchain_texture_handle := pool_add(*live_textures, .{
+            vk_image = it,
+            desc = .{
+                format = swapchain_format.format.(Format),
+                usage = create_info.imageUsage.(Usage_Flags),
+                dimensions = .[surface_extent.width, surface_extent.height, 1],
+            },
+        });
 
-        view_handle := pool_add(*live_views, .{view_desc, 0, vk_view});
-
-        write_texture_descriptor(vk_view, view_handle);
+        view_handle := gpu_texture_view(swapchain_texture_handle);
 
         swapchain_views[it_index] = view_handle;
     }

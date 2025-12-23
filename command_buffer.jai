@@ -118,8 +118,9 @@ gpu_submit_for_present :: (queue_handle: Gpu_Queue, buffer: Gpu_Command_Buffer) 
 
     image_barrier := VkImageMemoryBarrier2.{
         image = swapchain_images[current_swapchain_index],
-        srcStageMask = cast(u64) VkPipelineStageFlags.TOP_OF_PIPE_BIT,
+        srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
         dstStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT,
+        srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT,
         subresourceRange = .{
             baseMipLevel = 0,
             baseArrayLayer = 0,

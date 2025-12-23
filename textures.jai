@@ -70,7 +70,9 @@ gpu_free :: (texture_handle: Gpu_Texture) {
         cleanup_texture_view(it);
     }
 
-    vmaDestroyImage(vma, texture.vk_image, texture.allocation);
+    if texture.allocation {
+        vmaDestroyImage(vma, texture.vk_image, texture.allocation);
+    }
 }
 
 gpu_texture_view :: (texture_handle: Gpu_Texture, desc: Gpu_View_Desc = .{}) -> Gpu_Texture_View {

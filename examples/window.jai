@@ -15,7 +15,7 @@ main :: () {
     raster_desc := Gpu_Raster_Desc.{
         cull = .CW,
         color_targets = .[
-            .{format = .R8G8B8A8_UNORM}
+            .{format = .B8G8R8A8_UNORM}
         ],
         blend_state = *blend_state,
     };
@@ -25,14 +25,6 @@ main :: () {
     };
 
     graphics_pipeline := gpu_create_graphics_pipeline(vertex_spv, pixel_spv, raster_desc);
-
-    texture_desc := Gpu_Texture_Desc.{
-        format = .R8G8B8A8_UNORM,
-        dimensions = .[1024, 1024, 1],
-        usage = .COLOR_ATTACHMENT
-    };
-    texture := gpu_create_texture(texture_desc);
-    view := gpu_texture_view(texture);
 
     Vertex2D :: struct {
         x: float;
@@ -80,15 +72,21 @@ main :: () {
         for events_this_frame {
             if it.type == .QUIT then quit = true;
         }
+        if get_window_resizes().count > 0 {
+            gpu_swapchain_resize();
+        }
 
         swapchain_image := gpu_swapchain_acquire();
+        if !swapchain_image {
+            continue;
+        }
 
         cmd_buff := gpu_start_command_recording(main_queue);
         {
             render_desc := Gpu_Render_Pass_Desc.{
                 color_targets = .[
                     .{
-                        view = view,
+                        view = swapchain_image,
                         load_op = .CLEAR,
                         store_op = .STORE,
                         clear_color = .[0, 0, 0, 1],
@@ -105,9 +103,10 @@ main :: () {
             gpu_end_render_pass(cmd_buff);
         }
 
+        gpu_barrier(cmd_buff, .COLOR_ATTACHMENT_OUTPUT, .BOTTOM_OF_PIPE);
+
         gpu_submit_for_present(main_queue, cmd_buff);
 
-        // #todo: present should wait on the previous command to execute.
         gpu_present();
     }
 
@@ -115,7 +114,6 @@ main :: () {
 
     gpu_free_arena(gpu_arena);
     gpu_free_pipeline(graphics_pipeline);
-    gpu_free(texture);
 
     gpu_destroy_swapchain();
 
