@@ -75,6 +75,39 @@ gpu_free :: (texture_handle: Gpu_Texture) {
     }
 }
 
+
+gpu_copy_to_texture :: (dest: Gpu_Texture, src: *void, mip: u32 = 0, layer_slice: [2] u32 = .[0, U32_MAX]) {
+    texture := get_texture(dest);
+    assert(texture != null);
+
+    base_layer := layer_slice[0];
+    copy_region := VkMemoryToImageCopy.{
+        pHostPointer = src,
+        memoryRowLength = 0,
+        memoryImageHeight = 0,
+        imageSubresource = VkImageSubresourceLayers.{
+            aspectMask = get_image_aspect_mask(texture.desc.format),
+            mipLevel = mip,
+            baseArrayLayer = base_layer,
+            layerCount = min(layer_slice[1], texture.desc.layer_count - base_layer),
+        },
+        imageExtent = VkExtent3D.{texture.desc.dimensions[0], texture.desc.dimensions[1], texture.desc.dimensions[2]}
+    };
+
+    copy_info := VkCopyMemoryToImageInfo.{
+        dstImage = texture.vk_image,
+        dstImageLayout = .GENERAL,
+        regionCount = 1,
+        pRegions = *copy_region,
+    };
+    vk_result := vkCopyMemoryToImage(vk_device, *copy_info);
+    assert_vk_result(vk_result);
+}
+
+gpu_copy_from_texture :: (cmd: Gpu_Command_Buffer, dest: Gpu_Ptr, src: Gpu_Ptr, texture: Gpu_Texture) {
+
+}
+
 gpu_texture_view :: (texture_handle: Gpu_Texture, desc: Gpu_View_Desc = .{}) -> Gpu_Texture_View {
     texture := pool_get(live_textures, texture_handle);
     assert(texture != null);

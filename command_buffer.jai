@@ -137,12 +137,32 @@ gpu_memcpy :: (cmd: Gpu_Command_Buffer, dest: Gpu_Ptr, src: Gpu_Ptr, num_bytes: 
     vkCmdCopyBuffer(cmd_buff, src_alloc.vk_buffer, dest_alloc.vk_buffer, 1, *region);
 }
 
-gpu_copy_to_texture :: (cmd: Gpu_Command_Buffer, dest: Gpu_Ptr, src: Gpu_Ptr, texture: Gpu_Texture) {
+gpu_copy_to_texture :: (cmd: Gpu_Command_Buffer, dest: Gpu_Texture, src: Gpu_Ptr, mip: u32 = 0, layer_slice: [2] u32 = .[0, U32_MAX]) {
+    texture := get_texture(dest);
+    assert(texture != null);
+    vk_cmd_buff := get_cmd_buff(cmd);
 
-}
+    src_buffer, src_offset := get_buffer_and_offset(src);
+    assert(src_buffer != VK_NULL_HANDLE);
 
-gpu_copy_from_texture :: (cmd: Gpu_Command_Buffer, dest: Gpu_Ptr, src: Gpu_Ptr, texture: Gpu_Texture) {
+    base_layer := layer_slice[0];
+    subresource := VkImageSubresourceLayers.{
+        aspectMask = get_image_aspect_mask(texture.desc.format),
+        mipLevel = mip,
+        baseArrayLayer = base_layer,
+        layerCount = min(layer_slice[1], texture.desc.layer_count - base_layer),
+    };
 
+    copy_region := VkBufferImageCopy.{
+        bufferOffset = src_offset.(VkDeviceSize),
+        bufferRowLength = 0,
+        bufferImageHeight = 0,
+        imageOffset = VkOffset3D.{},
+        imageSubresource = subresource,
+        imageExtent = VkExtent3D.{texture.desc.dimensions[0], texture.desc.dimensions[1], texture.desc.dimensions[2]}
+    };
+
+    vkCmdCopyBufferToImage(vk_cmd_buff, src_buffer, texture.vk_image, .GENERAL, 1, *copy_region);
 }
 
 gpu_barrier :: (cmd: Gpu_Command_Buffer, before: Stage, after: Stage) {
@@ -166,15 +186,6 @@ gpu_barrier :: (cmd: Gpu_Command_Buffer, before: Stage, after: Stage) {
 
     vkCmdPipelineBarrier2(cmd_buff, *dep_info);
 }
-
-gpu_signal_after :: (cmd: Gpu_Command_Buffer, before: Stage, ptr: Gpu_Ptr, value: u64, signal: Signal) {
-    
-}
-
-gpu_wait_before :: (cmd: Gpu_Command_Buffer, after: Stage, ptr: Gpu_Ptr, value: u64, op: Op, signal: Signal) {
-    
-}
-
 
 gpu_set_pipeline :: (cmd: Gpu_Command_Buffer, pipeline_handle: Gpu_Pipeline) {
     vk_cmd_buff := get_cmd_buff(cmd);
