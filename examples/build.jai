@@ -8,6 +8,7 @@
     compile_example("basic");
     compile_example("instanced_drawing");
     compile_example("window");
+    compile_example("textures");
 
     copy_module_libraries_to_target("bin");
 }

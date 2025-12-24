@@ -156,20 +156,20 @@ gpu_texture_desc :: (view_hande: Gpu_Texture_View) -> bool, Gpu_Texture_Desc {
 
 gpu_create_sampler :: (desc: Gpu_Sampler_Desc) -> Gpu_Sampler {
     create_info := VkSamplerCreateInfo.{
-        minFilter = desc.min_filter,
-        magFilter = desc.mag_filter,
-        mipmapMode = desc.mip_filter,
+        minFilter = desc.min_filter.(VkFilter),
+        magFilter = desc.mag_filter.(VkFilter),
+        mipmapMode = desc.mip_filter.(VkSamplerMipmapMode),
         addressModeU = desc.address_mode_u.(VkSamplerAddressMode),
         addressModeV = desc.address_mode_v.(VkSamplerAddressMode),
         addressModeW = desc.address_mode_w.(VkSamplerAddressMode),
         mipLodBias = desc.mip_lod_bias,
-        anisotropyEnable = desc.enable_anisotropy,
-        compareEnable = (desc.compare_op != NEVER).(VkBool32),
+        anisotropyEnable = desc.enable_anisotropy.(VkBool32),
+        compareEnable = (desc.compare_op != .NEVER).(VkBool32),
         compareOp = desc.compare_op.(VkCompareOp),
         minLod = desc.min_lod,
         maxLod = desc.max_lod,
         borderColor = desc.border_color.(VkBorderColor),
-        unnormalizedCoordinates = desc.unnormalized_coordinates
+        unnormalizedCoordinates = desc.unnormalized_coordinates.(VkBool32)
     };
 
     vk_sampler: VkSampler;
@@ -177,7 +177,7 @@ gpu_create_sampler :: (desc: Gpu_Sampler_Desc) -> Gpu_Sampler {
     assert_vk_result(vk_result);
 
     handle := pool_add(*live_samplers, vk_sampler);
-    assert(handle);
+    assert(handle != 0);
 
     write_sampler_descriptor(vk_sampler, handle);
 

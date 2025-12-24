@@ -62,6 +62,17 @@
                 "LD_LIBRARY_PATH": "${workspaceFolder}/examples/bin"
             },
             "cwd": "${workspaceFolder}/examples/bin"
+        },
+        {
+            "name": "Textures - Unix",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/examples/bin/textures",
+            "args": [ ],
+            "env": {
+                "LD_LIBRARY_PATH": "${workspaceFolder}/examples/bin"
+            },
+            "cwd": "${workspaceFolder}/examples/bin"
         }
     ]
 }

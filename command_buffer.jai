@@ -195,7 +195,7 @@ gpu_set_pipeline :: (cmd: Gpu_Command_Buffer, pipeline_handle: Gpu_Pipeline) {
 
     vkCmdBindPipeline(vk_cmd_buff, bind_point, pipeline.vk_pipeline);
     // #todo: Do we need to rebind this every time? All the pipelines share the same pipeline layout so the binding is compatible.
-    bind_descriptor_buffer(vk_cmd_buff);
+    bind_descriptor_buffer(vk_cmd_buff, bind_point);
 }
 
 gpu_set_depth_stencil_state :: (cmd: Gpu_Command_Buffer, desc: Gpu_Depth_Stencil_Desc) {

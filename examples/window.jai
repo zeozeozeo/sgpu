@@ -61,11 +61,8 @@ main :: () {
     pixel_data, pixel_gpu := gpu_arena_alloc(*gpu_arena, [3] float);
     pixel_data.* = .[1., 0., 1.];
 
-    FRAMES_IN_FLIGHT :: 2;
     quit := false;
-    frame_index := 0;
     while !quit {
-        defer frame_index += 1;
         update_window_events();
         for events_this_frame {
             if it.type == .QUIT then quit = true;

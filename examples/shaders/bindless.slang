@@ -44,6 +44,17 @@ public extension ImageHandle<_Texture<E, Shape, 0, 0, 0, 1, 0, 0, format>> {
     }
 }
 
+__generic<E : ITexelElement, Shape : __ITextureShape, let format : int>
+public extension ImageHandle<_Texture<E, Shape, 0, 0, 0, 0, 0, 0, format>> {
+    typealias TextureType = _Texture<E, Shape, 0, 0, 0, 0, 0, 0, format>;
+
+    [ForceInline]
+    public E Sample(SamplerHandle sampler, vector<float, Shape.dimensions> pos) {
+        return Instance.Sample(sampler.Instance, pos);
+    }
+}
+
+
 
 public typealias TextureHandle2D<F: ITexelElement = float4> = ImageHandle<Texture2D<F>>;
 public typealias TextureHandle3D<F: ITexelElement = float4> = ImageHandle<Texture3D<F>>;
