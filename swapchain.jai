@@ -112,7 +112,7 @@ gpu_submit_and_present :: (queue_handle: Gpu_Queue, buffer: Gpu_Command_Buffer) 
             layerCount = 1,
             aspectMask = get_image_aspect_mask(swapchain_format.format.(Format)),
         },
-        oldLayout = .UNDEFINED,
+        oldLayout = .GENERAL,
         newLayout = .PRESENT_SRC_KHR,
     };
 
@@ -163,6 +163,35 @@ gpu_submit_and_present :: (queue_handle: Gpu_Queue, buffer: Gpu_Command_Buffer) 
 
 
     gpu_present();
+}
+
+gpu_transition_swapchain_to_general :: (cmd: Gpu_Command_Buffer) {
+    vk_cmd_buff := get_cmd_buff(cmd);
+    assert(vk_cmd_buff != VK_NULL_HANDLE);
+
+    image_barrier := VkImageMemoryBarrier2.{
+        image = swapchain_images[current_swapchain_index],
+        srcStageMask = 0,
+        srcAccessMask = 0,
+        dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+        dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
+        subresourceRange = .{
+            baseMipLevel = 0,
+            baseArrayLayer = 0,
+            levelCount = 1,
+            layerCount = 1,
+            aspectMask = get_image_aspect_mask(swapchain_format.format.(Format)),
+        },
+        oldLayout = .UNDEFINED,
+        newLayout = .GENERAL,
+    };
+
+    dep_info := VkDependencyInfo.{
+        imageMemoryBarrierCount = 1,
+        pImageMemoryBarriers = *image_barrier,
+    };
+
+    vkCmdPipelineBarrier2(vk_cmd_buff, *dep_info);
 }
 
 gpu_frame_timeline :: () -> Gpu_Semaphore {

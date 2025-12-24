@@ -80,6 +80,8 @@ main :: () {
         }
 
         cmd_buff := gpu_start_command_recording(main_queue);
+        // #todo: this should be possible to make transparent for the users.
+        gpu_transition_swapchain_to_general(cmd_buff);
         {
             render_desc := Gpu_Render_Pass_Desc.{
                 color_targets = .[
