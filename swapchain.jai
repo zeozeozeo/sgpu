@@ -71,6 +71,18 @@ gpu_swapchain_acquire :: () -> Gpu_Texture_View {
     if vk_result == .SUCCESS {
         frame_timeline_cpu += 1;
 
+        queue_handle := gpu_get_queue(.MAIN, 0);
+        cmd_buff := gpu_start_command_recording(queue_handle);
+
+        transition_swapchain_to_general(cmd_buff);
+
+        submit_command_buffer(.{
+            queue_handle = queue_handle,
+            cmd_buff = cmd_buff,
+            wait_semaphores = .[current_acquire_semaphore()],
+            wait_values = .[0],
+        });
+
         return swapchain_views[current_swapchain_index];
     }
 
@@ -93,11 +105,8 @@ gpu_present :: () {
     assert(vk_result == .SUCCESS || vk_result == .SUBOPTIMAL_KHR || vk_result == .ERROR_OUT_OF_DATE_KHR);
 }
 
-gpu_submit_and_present :: (queue_handle: Gpu_Queue, buffer: Gpu_Command_Buffer) {
-    assert(buffer != 0);
-    index := (buffer - 1);
-    assert(index < live_pools.count);
-    pool := live_pools[index];
+gpu_submit_and_present :: (queue_handle: Gpu_Queue, cmd_buff: Gpu_Command_Buffer) {
+    vk_cmd_buff := get_cmd_buff(cmd_buff);
 
     image_barrier := VkImageMemoryBarrier2.{
         image = swapchain_images[current_swapchain_index],
@@ -121,77 +130,16 @@ gpu_submit_and_present :: (queue_handle: Gpu_Queue, buffer: Gpu_Command_Buffer) 
         pImageMemoryBarriers = *image_barrier,
     };
 
-    vkCmdPipelineBarrier2(pool.vk_cmd_buff, *dep_info);
+    vkCmdPipelineBarrier2(vk_cmd_buff, *dep_info);
 
-
-    vkEndCommandBuffer(pool.vk_cmd_buff);
-
-    queue := get_queue(queue_handle);
-
-    queue_timeline_value := atomic_add(*queue.timeline_value, 1) + 1; // atomic_add returns the previous value.
-
-    signal_values := u64.[queue_timeline_value, 0, 0];
-    signal_semaphores := VkSemaphore.[queue.timeline, current_present_semaphore(), VK_NULL_HANDLE];
-    signal_count: u32 = 3;
-
-    vk_semaphore := get_semaphore(frame_timeline);
-    signal_semaphores[2] = vk_semaphore;
-    signal_values[2] = frame_timeline_cpu;
-
-    timeline_info := VkTimelineSemaphoreSubmitInfo.{
-        signalSemaphoreValueCount = signal_count,
-        pSignalSemaphoreValues = signal_values.data,
-    };
-
-    wait_stages := VkPipelineStageFlagBits.TOP_OF_PIPE_BIT;
-    wait_semaphore := current_acquire_semaphore();
-    cmd_buffers := VkCommandBuffer.[pool.vk_cmd_buff];
-    submit_info := VkSubmitInfo.{
-        pNext = *timeline_info,
-        commandBufferCount = cmd_buffers.count.(u32),
-        pCommandBuffers = cmd_buffers.data,
-        signalSemaphoreCount = signal_count,
-        pSignalSemaphores = signal_semaphores.data,
-        waitSemaphoreCount = 1,
-        pWaitSemaphores = *wait_semaphore,
-        pWaitDstStageMask = *wait_stages,
-    };
-    vkQueueSubmit(queue.vk_queue, 1, *submit_info, VK_NULL_HANDLE);
-
-    live_pools[index] = null;
-    array_add(*garbage_pools[queue.type], .{queue_timeline_value, pool});
-
+    submit_command_buffer(.{
+        queue_handle = queue_handle,
+        cmd_buff = cmd_buff,
+        signal_semaphores = .[current_present_semaphore(), get_semaphore(frame_timeline)],
+        signal_values = .[0, frame_timeline_cpu],
+    });
 
     gpu_present();
-}
-
-gpu_transition_swapchain_to_general :: (cmd: Gpu_Command_Buffer) {
-    vk_cmd_buff := get_cmd_buff(cmd);
-    assert(vk_cmd_buff != VK_NULL_HANDLE);
-
-    image_barrier := VkImageMemoryBarrier2.{
-        image = swapchain_images[current_swapchain_index],
-        srcStageMask = 0,
-        srcAccessMask = 0,
-        dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-        dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
-        subresourceRange = .{
-            baseMipLevel = 0,
-            baseArrayLayer = 0,
-            levelCount = 1,
-            layerCount = 1,
-            aspectMask = get_image_aspect_mask(swapchain_format.format.(Format)),
-        },
-        oldLayout = .UNDEFINED,
-        newLayout = .GENERAL,
-    };
-
-    dep_info := VkDependencyInfo.{
-        imageMemoryBarrierCount = 1,
-        pImageMemoryBarriers = *image_barrier,
-    };
-
-    vkCmdPipelineBarrier2(vk_cmd_buff, *dep_info);
 }
 
 gpu_frame_timeline :: () -> Gpu_Semaphore {
@@ -341,6 +289,35 @@ current_present_semaphore :: () -> VkSemaphore {
 current_acquire_semaphore :: () -> VkSemaphore {
     return acquire_semaphores[acquire_semaphore_index];
 }
+
+transition_swapchain_to_general :: (cmd_buff: Gpu_Command_Buffer) {
+    vk_cmd_buff := get_cmd_buff(cmd_buff);
+
+    image_barrier := VkImageMemoryBarrier2.{
+        image = swapchain_images[current_swapchain_index],
+        srcStageMask = 0,
+        srcAccessMask = 0,
+        dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+        dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
+        subresourceRange = .{
+            baseMipLevel = 0,
+            baseArrayLayer = 0,
+            levelCount = 1,
+            layerCount = 1,
+            aspectMask = get_image_aspect_mask(swapchain_format.format.(Format)),
+        },
+        oldLayout = .UNDEFINED,
+        newLayout = .GENERAL,
+    };
+
+    dep_info := VkDependencyInfo.{
+        imageMemoryBarrierCount = 1,
+        pImageMemoryBarriers = *image_barrier,
+    };
+
+    vkCmdPipelineBarrier2(vk_cmd_buff, *dep_info);
+}
+
 
 native_window_handle: u64;
 native_window_type: Native_Window_Type;

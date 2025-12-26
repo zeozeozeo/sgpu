@@ -67,8 +67,6 @@ main :: () {
         }
 
         cmd_buff := gpu_start_command_recording(main_queue);
-        // #todo: this should be possible to make transparent for the users.
-        gpu_transition_swapchain_to_general(cmd_buff);
         {
             render_desc := Gpu_Render_Pass_Desc.{
                 color_targets = .[
@@ -134,7 +132,7 @@ load_texture :: (filename: string, format: Format) -> Gpu_Texture, Gpu_Texture_V
     return texture, view;
 }
 
-#import,file "../../simp_gpu/module.jai"(VALIDATION = false, ENABLE_RENDER_CAPTURE = false);
+#import,file "../../simp_gpu/module.jai"(VALIDATION = true, ENABLE_RENDER_CAPTURE = false);
 #import "Basic";
 #import "Window_Creation"(DEFAULT_MSAA = 1);
 #import "Input";

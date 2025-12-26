@@ -68,46 +68,11 @@ gpu_start_command_recording :: (queue_handle: Gpu_Queue) -> Gpu_Command_Buffer {
     return cmd_buff_handle;
 }
 
-gpu_submit :: (queue_handle: Gpu_Queue, buffer: Gpu_Command_Buffer, signal: Gpu_Semaphore = 0, signal_value: u64 = 0) {
-    assert(buffer != 0);
-    index := (buffer - 1);
-    assert(index < live_pools.count);
-    pool := live_pools[index];
-
-    vkEndCommandBuffer(pool.vk_cmd_buff);
-
-    queue := get_queue(queue_handle);
-
-    queue_timeline_value := atomic_add(*queue.timeline_value, 1) + 1; // atomic_add returns the previous value.
-
-    signal_values := u64.[queue_timeline_value, 0];
-    signal_semaphores := VkSemaphore.[queue.timeline, VK_NULL_HANDLE];
-    signal_count: u32 = 1;
-
-    if signal != 0 {
-        vk_semaphore := get_semaphore(signal);
-        signal_semaphores[1] = vk_semaphore;
-        signal_values[1] = signal_value;
-        signal_count += 1;
-    }
-
-    timeline_info := VkTimelineSemaphoreSubmitInfo.{
-        signalSemaphoreValueCount = signal_count,
-        pSignalSemaphoreValues = signal_values.data,
-    };
-
-    cmd_buffers := VkCommandBuffer.[pool.vk_cmd_buff];
-    submit_info := VkSubmitInfo.{
-        pNext = *timeline_info,
-        commandBufferCount = cmd_buffers.count.(u32),
-        pCommandBuffers = cmd_buffers.data,
-        signalSemaphoreCount = signal_count,
-        pSignalSemaphores = signal_semaphores.data,
-    };
-    vkQueueSubmit(queue.vk_queue, 1, *submit_info, VK_NULL_HANDLE);
-
-    live_pools[index] = null;
-    array_add(*garbage_pools[queue.type], .{queue_timeline_value, pool});
+gpu_submit :: (queue_handle: Gpu_Queue, buffer: Gpu_Command_Buffer, signal: Gpu_Semaphore, signal_value: u64) {
+    submit_command_buffer(.{queue_handle = queue_handle, cmd_buff = buffer, signal_semaphores = .[get_semaphore(signal)], signal_values = .[signal_value]});
+}
+gpu_submit :: (queue_handle: Gpu_Queue, buffer: Gpu_Command_Buffer) {
+    submit_command_buffer(.{queue_handle = queue_handle, cmd_buff = buffer });
 }
 
 gpu_memcpy :: (cmd: Gpu_Command_Buffer, dest: Gpu_Ptr, src: Gpu_Ptr, num_bytes: s64) {
@@ -380,4 +345,72 @@ get_cmd_buff :: (cmd_buff_handle: Gpu_Command_Buffer) -> VkCommandBuffer {
     assert(cmd_buff_handle >= 0 && cmd_buff_handle < live_pools.count);
 
     return live_pools[cmd_buff_index].vk_cmd_buff;
+}
+
+Submit_Info :: struct {
+    queue_handle: Gpu_Queue;
+    cmd_buff: Gpu_Command_Buffer;
+    wait_semaphores: [] VkSemaphore = .[];
+    wait_values: [] u64 = .[];
+    signal_semaphores: [] VkSemaphore = .[];
+    signal_values: [] u64 = .[];
+}
+
+submit_command_buffer :: (using submit_info: Submit_Info) {
+    assert(cmd_buff != 0);
+    index := (cmd_buff - 1);
+    assert(index < live_pools.count);
+    pool := live_pools[index];
+
+    vkEndCommandBuffer(pool.vk_cmd_buff);
+
+    queue := get_queue(queue_handle);
+
+    queue_timeline_value := atomic_add(*queue.timeline_value, 1) + 1; // atomic_add returns the previous value.
+
+    auto_release_temp();
+    push_allocator(temp);
+
+    assert(signal_semaphores.count == signal_values.count);
+    assert(wait_semaphores.count == wait_values.count);
+
+    all_signal_values: [..] u64;
+    all_signal_semaphores: [..] VkSemaphore;
+    all_wait_values: [..] u64;
+    all_wait_semaphores: [..] VkSemaphore;
+    array_add(*all_signal_values, queue.timeline_value);
+    array_add(*all_signal_semaphores, queue.timeline);
+    for 0..signal_semaphores.count-1 {
+        array_add(*all_signal_semaphores, signal_semaphores[it]);
+        array_add(*all_signal_values, signal_values[it]);
+    }
+
+    for 0..wait_semaphores.count-1 {
+        array_add(*all_wait_semaphores, wait_semaphores[it]);
+        array_add(*all_wait_values, wait_values[it]);
+    }
+
+    timeline_info := VkTimelineSemaphoreSubmitInfo.{
+        waitSemaphoreValueCount = all_wait_values.count.(u32),
+        pWaitSemaphoreValues = all_wait_values.data,
+        signalSemaphoreValueCount = all_signal_values.count.(u32),
+        pSignalSemaphoreValues = all_signal_values.data,
+    };
+
+    wait_stages := VkPipelineStageFlagBits.TOP_OF_PIPE_BIT;
+    cmd_buffers := VkCommandBuffer.[pool.vk_cmd_buff];
+    submit_info := VkSubmitInfo.{
+        pNext = *timeline_info,
+        commandBufferCount = cmd_buffers.count.(u32),
+        pCommandBuffers = cmd_buffers.data,
+        signalSemaphoreCount = all_signal_semaphores.count.(u32),
+        pSignalSemaphores = all_signal_semaphores.data,
+        waitSemaphoreCount = all_wait_semaphores.count.(u32),
+        pWaitSemaphores = all_wait_semaphores.data,
+        pWaitDstStageMask = *wait_stages,
+    };
+    vkQueueSubmit(queue.vk_queue, 1, *submit_info, VK_NULL_HANDLE);
+
+    live_pools[index] = null;
+    array_add(*garbage_pools[queue.type], .{queue_timeline_value, pool});
 }
