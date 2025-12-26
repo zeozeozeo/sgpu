@@ -58,7 +58,9 @@ gpu_start_command_recording :: (queue_handle: Gpu_Queue) -> Gpu_Command_Buffer {
 
     live_pools[index] = pool;
 
-    cmd_buff_handle := cast(Gpu_Command_Buffer) (index + 1);
+    cmd_buff_handle := cast(Gpu_Command_Buffer) (pool.vk_cmd_buff);
+
+    table_add(*cmd_buffer_indices, cmd_buff_handle, index);
 
     begin_info := VkCommandBufferBeginInfo.{
         flags = .ONE_TIME_SUBMIT_BIT
@@ -315,6 +317,7 @@ Garbage_Command_Pool :: struct {
 }
 
 live_pools: [MAX_COMMAND_POOLS * NUM_QUEUE_FAMILIES] *Command_Pool;
+cmd_buffer_indices: Table(Gpu_Command_Buffer, s64);
 // #TODO: fixed size allocation but can resizeable count within that buffer.
 garbage_pools: [NUM_QUEUE_FAMILIES] [..] Garbage_Command_Pool;
 
@@ -338,10 +341,14 @@ reclaim_completed_command_pools :: () {
 }
 
 get_cmd_buff :: (cmd_buff_handle: Gpu_Command_Buffer) -> VkCommandBuffer {
-    cmd_buff_index := (cmd_buff_handle - 1);
-    assert(cmd_buff_handle >= 0 && cmd_buff_handle < live_pools.count);
+    return cmd_buff_handle.(VkCommandBuffer);
+}
 
-    return live_pools[cmd_buff_index].vk_cmd_buff;
+get_cmd_buff_index :: (cmd_buff_handle: Gpu_Command_Buffer) -> s64 {
+    found, cmd_buff_index := table_find(*cmd_buffer_indices, cmd_buff_handle);
+    assert(found);
+
+    return cmd_buff_index;
 }
 
 Submit_Info :: struct {
@@ -355,7 +362,7 @@ Submit_Info :: struct {
 
 submit_command_buffer :: (using submit_info: Submit_Info) {
     assert(cmd_buff != 0);
-    index := (cmd_buff - 1);
+    index := get_cmd_buff_index(cmd_buff);
     assert(index < live_pools.count);
     pool := live_pools[index];
 
@@ -410,4 +417,5 @@ submit_command_buffer :: (using submit_info: Submit_Info) {
 
     live_pools[index] = null;
     array_add(*garbage_pools[queue.type], .{queue_timeline_value, pool});
+    table_remove(*cmd_buffer_indices, cmd_buff);
 }
