@@ -8,6 +8,9 @@ Native_Window_Type :: enum {
 }
 
 gpu_init_swapchain :: (native_window: u64, window_type: Native_Window_Type) {
+    auto_release_temp();
+    push_allocator(temp);
+
     native_window_handle = native_window;
     native_window_type = window_type;
     recreate_surface();
@@ -339,6 +342,7 @@ present_semaphores: [MAX_FRAMES_IN_FLIGHT] VkSemaphore;
 frame_timeline: Gpu_Semaphore;
 frame_timeline_cpu: u64;
 
+// #todo: these should be made static with a hard cap.
 swapchain_images: [..] VkImage;
 swapchain_textures: [..] Gpu_Texture;
 swapchain_views: [..] Gpu_Texture_View;

@@ -3,6 +3,7 @@
 Pool :: struct(Handle_Type: Type, Value_Type: Type, max: s64 = S64_MAX) {
     values: [..] Value_Type;
     free_list: [..] s64;
+    allocator: Allocator;
 }
 
 pool_add :: (using pool: *Pool, item: pool.Value_Type) -> pool.Handle_Type {
@@ -12,7 +13,7 @@ pool_add :: (using pool: *Pool, item: pool.Value_Type) -> pool.Handle_Type {
         return (index + 1).(pool.Handle_Type);
     } else {
         assert(values.count < pool.max, "pool ran out of valid handle ids");
-        array_add(*values, item);
+        array_add(*values, item,, allocator);
         return values.count.(pool.Handle_Type);
     }
 }
@@ -20,7 +21,7 @@ pool_add :: (using pool: *Pool, item: pool.Value_Type) -> pool.Handle_Type {
 pool_remove :: (using pool: *Pool, handle: pool.Handle_Type) -> bool, pool.Value_Type {
     index := (handle - 1).(s64);
     assert(index >= 0 && index < values.count);
-    array_add(*free_list, index);
+    array_add(*free_list, index,, allocator);
     return true, values[index];
 }
 

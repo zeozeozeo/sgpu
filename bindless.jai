@@ -1,9 +1,8 @@
+#scope_module
+
 TEXTURE_BINDING :: 0;
 RW_TEXTURE_BINDING :: 1;
 SAMPLER_BINDING :: 2;
-
-
-#scope_module
 
 create_descriptor_buffer :: () {
     properties: VkPhysicalDeviceProperties2;

@@ -451,6 +451,8 @@ Gpu_Render_Pass_Desc :: struct {
 // ----------------------------- Global ------------------------------------
 
 gpu_init :: () {
+    remember_allocator();
+
     #if ENABLE_RENDER_CAPTURE {
         gpu_capture_init();
     }
@@ -926,6 +928,9 @@ generate_get_device_proc_addr :: (proc_name: string) ->string #compile_time {
     return tprint(INSERT_STRING, proc_name);
 }
 
+// we remember the allocator passed into gpu_init and ensure all cpu allocations occur using that allocator.
+cpu_allocator: Allocator;
+
 vk_instance: VkInstance;
 vk_physical_device: VkPhysicalDevice;
 vk_physical_device_properties: VkPhysicalDeviceProperties2;
@@ -1017,6 +1022,35 @@ vkCmdEndRenderingKHR : PFN_vkCmdEndRenderingKHR;
 
         return VK_FALSE;
     }
+}
+
+remember_allocator :: () {
+    cpu_allocator = context.allocator;
+
+    live_semaphores.allocator = cpu_allocator;
+    live_pipelines.allocator = cpu_allocator;
+
+    live_textures.allocator = cpu_allocator;
+    live_views.allocator = cpu_allocator;
+    live_samplers.allocator = cpu_allocator;
+
+    cpu_allocations.allocator = cpu_allocator;
+    gpu_allocations.allocator = cpu_allocator;
+    gpu_memory_ranges.allocator = cpu_allocator;
+
+    for * cmd_pools {
+        it.all_pools.allocator = cpu_allocator;
+        it.available_pools.allocator = cpu_allocator;
+    }
+    cmd_buffer_indices.allocator = cpu_allocator;
+    for * garbage_pools {
+        it.allocator = cpu_allocator;
+    }
+
+
+    swapchain_images.allocator = cpu_allocator;
+    swapchain_textures.allocator = cpu_allocator;
+    swapchain_views.allocator = cpu_allocator;
 }
 
 #import,file "modules/Vulkan_With_VMA/module.jai";

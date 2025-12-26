@@ -89,6 +89,8 @@ main :: () {
         }
 
         gpu_submit_and_present(main_queue, cmd_buff);
+
+        reset_temporary_storage();
     }
 
     gpu_wait_idle();

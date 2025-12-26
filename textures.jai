@@ -136,7 +136,7 @@ gpu_texture_view :: (texture_handle: Gpu_Texture, desc: Gpu_View_Desc = .{}) -> 
 
     handle := pool_add(*live_views, .{desc, texture_handle, vk_view});
 
-    array_add(*texture.views, handle);
+    array_add(*texture.views, handle,, cpu_allocator);
 
     write_texture_descriptor(vk_view, handle);
     return handle;
