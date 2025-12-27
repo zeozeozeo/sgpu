@@ -111,7 +111,7 @@ main :: () {
     gpu_shutdown();
 }
 
-#import,file "../../simp_gpu/module.jai"(VALIDATION = true);
+#import,file "../module.jai"(VALIDATION = true);
 #import "Basic";
 #import "Window_Creation"(DEFAULT_MSAA = 1);
 #import "Input";
