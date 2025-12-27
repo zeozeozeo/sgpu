@@ -184,6 +184,25 @@ gpu_set_blend_state :: (cmd: Gpu_Command_Buffer, state: Gpu_Blend_State) {
 
 }
 
+gpu_set_viewport :: (cmd: Gpu_Command_Buffer, viewport: Viewport) {
+    vk_cmd_buff := get_cmd_buff(cmd);
+    vkCmdSetViewport(vk_cmd_buff, 0, 1, (*viewport).(*VkViewport));
+}
+gpu_set_viewports :: (cmd: Gpu_Command_Buffer, viewports: [] Viewport) {
+    vk_cmd_buff := get_cmd_buff(cmd);
+    vkCmdSetViewport(vk_cmd_buff, 0, viewports.count.(u32), (viewports.data).(*VkViewport));
+}
+
+gpu_set_scissors :: (cmd: Gpu_Command_Buffer, rects: [] Rect_2D) {
+    vk_cmd_buff := get_cmd_buff(cmd);
+    vkCmdSetScissor(vk_cmd_buff, 0, rects.count.(u32), (rects.data).(*VkRect2D));
+}
+
+gpu_set_scissor :: (cmd: Gpu_Command_Buffer, rect: Rect_2D) {
+    vk_cmd_buff := get_cmd_buff(cmd);
+    vkCmdSetScissor(vk_cmd_buff, 0, 1, (*rect).(*VkRect2D));
+}
+
 gpu_dispatch :: (cmd: Gpu_Command_Buffer, data: Gpu_Ptr, dimensions: [3] u32) {
     vk_cmd_buff := get_cmd_buff(cmd);
     vkCmdPushConstants(vk_cmd_buff, vk_pipeline_layout, .COMPUTE_BIT, 2 * size_of(Gpu_Ptr), size_of(Gpu_Ptr), *data);
@@ -264,10 +283,10 @@ gpu_begin_render_pass :: (cmd: Gpu_Command_Buffer, desc: Gpu_Render_Pass_Desc) {
 
     vkCmdBeginRendering(vk_cmd_buff, *render_info);
 
-    // #todo: Custom control over viewports will be required
+    // #todo: I don't want to require users to have to set these for every draw since the majority of cases will just be doing something like this.
+    // should we instead detect if users have manually set these values and if not, set something behind their back if they start drawing?
     viewport := VkViewport.{x = 0, y = 0, width = xx render_area.extent.width, height = xx render_area.extent.height, minDepth = 0, maxDepth = 1};
     vkCmdSetViewport(vk_cmd_buff, 0, 1, *viewport);
-    // #todo: custom control over scissor will be required.
     vkCmdSetScissor(vk_cmd_buff, 0, 1, *render_area);
 }
 

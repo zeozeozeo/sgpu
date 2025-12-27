@@ -357,6 +357,22 @@ Gpu_Depth_Stencil_Desc :: struct {
     stencil_back: Stencil_Desc;
 }
 
+Rect_2D :: struct {
+    x: u32;
+    y: u32;
+    width: u32;
+    height: u32;
+}
+
+Viewport :: struct {
+    x: float;
+    y: float;
+    width: float;
+    height: float;
+    min_depth: float;
+    max_depth: float;
+}
+
 Color_Target :: struct {
     format: Format = .UNDEFINED;
 }

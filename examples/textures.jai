@@ -101,6 +101,8 @@ main :: () {
             };
             gpu_begin_render_pass(cmd_buff, render_desc);
             gpu_set_depth_stencil_state(cmd_buff, .{ depth_test = .NEVER });
+            gpu_set_scissors(cmd_buff, .[.{0, 0, 1024, 1024}]);
+            gpu_set_viewports(cmd_buff, .[.{0, 0, 1024, 1024, 0, 1}]);
 
             gpu_set_pipeline(cmd_buff, graphics_pipeline);
 
