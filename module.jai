@@ -99,10 +99,9 @@ Component_Flags :: enum_flags {
 }
 
 Topology :: enum {
-    // #todo: nyi
-    //POINT_LIST      :: 0;
-    //LINE_LIST       :: 1;
-    //LINE_STRIP      :: 2;
+    POINT_LIST      :: 0;
+    LINE_LIST       :: 1;
+    LINE_STRIP      :: 2;
     TRIANGLE_LIST   :: 3;
     TRIANGLE_STRIP  :: 4;
     TRIANGLE_FAN    :: 5;
