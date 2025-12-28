@@ -324,7 +324,7 @@ gpu_draw_indexed_instanced :: (cmd: Gpu_Command_Buffer, vertex_data: Gpu_Ptr, pi
     result, index_buffer, offset := get_buffer_and_offset(index_data);
     return_if_error(result);
 
-    if index_size != 4 || index_size != 2 then return .ERROR_INVALID_VERTEX_INDEX_SIZE;
+    if index_size != 4 && index_size != 2 then return .ERROR_INVALID_VERTEX_INDEX_SIZE;
     vkCmdBindIndexBuffer(vk_cmd_buff, index_buffer, offset.(VkDeviceSize), ifx index_size == 4 then .UINT32 else .UINT16);
     vkCmdDrawIndexed(vk_cmd_buff, index_count, instance_count, 0, 0, 0);
 
