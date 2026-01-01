@@ -186,7 +186,7 @@ recreate_swapchain :: () {
         imageExtent = surface_extent,
         imageArrayLayers = 1,
         imageSharingMode = .EXCLUSIVE,
-        imageUsage = .COLOR_ATTACHMENT_BIT | .TRANSFER_DST_BIT,
+        imageUsage = .COLOR_ATTACHMENT_BIT | .TRANSFER_DST_BIT | .STORAGE_BIT,
         minImageCount = 3,
         queueFamilyIndexCount = 1,
         pQueueFamilyIndices = *get_queue(gpu_get_queue(.MAIN, 0)).vk_family,
