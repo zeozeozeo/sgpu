@@ -33,7 +33,7 @@ gpu_arena_alloc :: (using arena: *Gpu_Arena, alloc_size: s64, min_alignment: s64
 }
 
 gpu_arena_head :: (arena: *Gpu_Arena) -> Gpu_Ptr {
-    return arena.gpu + arena.head;
+    return arena.gpu + arena.head.(Gpu_Ptr);
 }
 
 gpu_reset_arena :: (arena: *Gpu_Arena) {
