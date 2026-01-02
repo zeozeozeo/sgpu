@@ -1116,15 +1116,18 @@ create_device :: () -> Gpu_Result {
     // load extension function pointers
     {
         loaded_all_pfns: bool = true;
+        // required pfns:
         #insert #run generate_get_device_proc_addr("vkCmdBeginRenderingKHR");
         #insert #run generate_get_device_proc_addr("vkCmdEndRenderingKHR");
+        if !loaded_all_pfns then return .FATAL_MISSING_REQUIRED_FEATURE;
+
+        // optional extension pfns:
         #insert #run generate_get_device_proc_addr("vkGetDescriptorSetLayoutSizeEXT");
         #insert #run generate_get_device_proc_addr("vkGetDescriptorSetLayoutBindingOffsetEXT");
         #insert #run generate_get_device_proc_addr("vkGetDescriptorSetLayoutBindingOffsetEXT");
         #insert #run generate_get_device_proc_addr("vkGetDescriptorEXT");
         #insert #run generate_get_device_proc_addr("vkCmdBindDescriptorBuffersEXT");
         #insert #run generate_get_device_proc_addr("vkCmdSetDescriptorBufferOffsetsEXT");
-        if !loaded_all_pfns then return .FATAL_MISSING_REQUIRED_FEATURE;
     }
 
     return .SUCCESS;
