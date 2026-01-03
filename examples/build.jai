@@ -6,6 +6,7 @@
     make_directory_if_it_does_not_exist("bin");
 
     compile_example("01_memory");
+    compile_example("02_compute");
     compile_example("instanced_drawing");
     compile_example("window");
     compile_example("textures");

@@ -16,8 +16,11 @@ struct PixelParams<T> {
 
 struct ComputeParams<T> {
     [[vk::offset(16)]]
-    Ptr<T, Access.Immutable> data;
+    Ptr<T> data;
 
     [ForceInline]
     T get() { return *data; }
+
+    [ForceInline]
+    T* ptr() { return data; }
 };

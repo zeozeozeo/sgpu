@@ -44,6 +44,17 @@
       "cwd": "${workspaceFolder}/examples/bin"
     },
     {
+      "name": "02_Compute - Unix",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/examples/bin/02_compute",
+      "args": [],
+      "env": {
+        "LD_LIBRARY_PATH": "${workspaceFolder}/examples/bin"
+      },
+      "cwd": "${workspaceFolder}/examples/bin"
+    },
+    {
       "name": "Instanced Draw - Unix",
       "type": "lldb",
       "request": "launch",
