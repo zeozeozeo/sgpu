@@ -30,7 +30,7 @@ gpu_create_texture :: (desc: Gpu_Texture_Desc, optional_signal_texture_ready: []
     if handle == 0 {
         return .ERROR_TEXTURE_LIMIT_EXCEEDED, 0;
     }
-    
+
     transfer_queue := gpu_get_queue(.MAIN, 0);
     result, cmd_buff := gpu_start_command_recording(transfer_queue);
     return_if_error(result, 0);
@@ -116,7 +116,7 @@ gpu_texture_view :: (texture_handle: Gpu_Texture, desc: Gpu_View_Desc = .{}) -> 
 
     // if the view desc doesn't define a specific format then just use the texture native format.
     format := ifx desc.format != .UNDEFINED then desc.format else texture.desc.format;
-    
+
     create_info := VkImageViewCreateInfo.{
         image = texture.vk_image,
         viewType = texture.desc.type.(VkImageViewType),
@@ -129,7 +129,7 @@ gpu_texture_view :: (texture_handle: Gpu_Texture, desc: Gpu_View_Desc = .{}) -> 
             layerCount = min(desc.layer_count, texture.desc.layer_count),
         },
     };
-    
+
     vk_view: VkImageView;
     vk_result := vkCreateImageView(vk_device, *create_info, null, *vk_view);
     assert_vk_result(vk_result);
@@ -172,7 +172,8 @@ gpu_create_sampler :: (desc: Gpu_Sampler_Desc) -> Gpu_Sampler {
         addressModeU = desc.address_mode_u.(VkSamplerAddressMode),
         addressModeV = desc.address_mode_v.(VkSamplerAddressMode),
         addressModeW = desc.address_mode_w.(VkSamplerAddressMode),
-        mipLodBias = desc.mip_lod_bias,
+        // MoltenVK does not support mip lod bias.
+        mipLodBias = #ifx OS == .MACOS then 0. else desc.mip_lod_bias,
         anisotropyEnable = desc.enable_anisotropy.(VkBool32),
         compareEnable = (desc.compare_op != .NEVER).(VkBool32),
         compareOp = desc.compare_op.(VkCompareOp),
