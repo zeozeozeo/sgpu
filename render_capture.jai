@@ -1,6 +1,6 @@
 #scope_export
 
-#if ENABLE_RENDER_CAPTURE {
+#if RENDER_CAPTURE {
 
     gpu_capture_start :: () {
         rdoc_api.StartFrameCapture(null, null);

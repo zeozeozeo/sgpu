@@ -1,4 +1,13 @@
-#module_parameters(VALIDATION := false, ENABLE_RENDER_CAPTURE := false, DEBUG_ASSERTS := false);
+#module_parameters(
+    // Optionally enables Vulkan validation layers.
+    VALIDATION := false,
+    // Optionally enables debug assertions within the sgpu module
+    DEBUG_ASSERTS := false,
+    // Optionally includes an api for taking render doc captures
+    RENDER_CAPTURE := false,
+    // Optionally includes a slang shader compiler submodule
+    SLANG_COMPILER := true
+);
 
 Gpu_Pipeline :: #type,distinct s64;
 
@@ -527,7 +536,7 @@ gpu_init :: (optional_features: Gpu_Optional_Features = .DESCRIPTOR_BUFFER) -> G
     remember_allocator();
     requested_optional_features = optional_features;
 
-    #if ENABLE_RENDER_CAPTURE {
+    #if RENDER_CAPTURE {
         gpu_capture_init();
     }
 
@@ -603,11 +612,14 @@ gpu_get_queue :: (queue_type: Gpu_Queue_Type, queue_index: u32) -> Gpu_Queue {
 #load "textures.jai";
 #load "bindless.jai";
 #load "pipeline.jai";
-#load "shader_compiler.jai";
 #load "render_capture.jai";
 #load "gpu_arena.jai";
 #load "swapchain.jai";
 #load "sync.jai";
+
+#if SLANG_COMPILER {
+    #load "shader_compiler.jai";
+}
 
 #scope_module
 

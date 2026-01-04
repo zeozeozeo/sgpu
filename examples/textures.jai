@@ -157,7 +157,7 @@ load_texture :: (filename: string, format: Format, upload_complete_timeline: Gpu
     return texture, view;
 }
 
-#import,file "../module.jai"(VALIDATION = true, ENABLE_RENDER_CAPTURE = false);
+#import,file "../module.jai"(VALIDATION = true);
 #import "Basic";
 #import "Input";
 #import "stb_image";

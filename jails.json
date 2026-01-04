@@ -1,11 +1,5 @@
 {
-    "local_modules": [
-        "modules"
-    ],
-    "roots": [
-        "module.jai",
-        "memory.jai"
-    ],
-    "build_root": "module.jai",
-    "intermediate_path": "tmp/"
+  "local_modules": ["modules"],
+  "roots": ["module.jai"],
+  "build_root": "module.jai"
 }
