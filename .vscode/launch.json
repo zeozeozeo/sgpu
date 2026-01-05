@@ -66,6 +66,17 @@
       "cwd": "${workspaceFolder}/examples/bin"
     },
     {
+      "name": "04_Mesh Shaders - Unix",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/examples/bin/04_mesh_shaders",
+      "args": [],
+      "env": {
+        "LD_LIBRARY_PATH": "${workspaceFolder}/examples/bin"
+      },
+      "cwd": "${workspaceFolder}/examples/bin"
+    },
+    {
       "name": "Textures - Unix",
       "type": "lldb",
       "request": "launch",

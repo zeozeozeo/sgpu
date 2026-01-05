@@ -321,6 +321,7 @@ Gpu_Result :: enum s32 {
     FATAL_OUT_OF_GPU_MEMORY;
     FATAL_OUT_OF_CPU_MEMORY;
 
+    ERROR_MISSING_OPTIONAL_EXTENSION;
     ERROR_COMMAND_BUFFER_LIMIT_EXCEEDED;
     ERROR_TEXTURE_LIMIT_EXCEEDED;
 
@@ -345,9 +346,9 @@ Gpu_Optional_Features :: enum_flags {
     SHADER_INT64            :: 1 << 4;
     SHADER_INT8             :: 1 << 5;
     STORAGE_PUSH_CONSTANT_8 :: 1 << 6;
+    MESH_SHADERS            :: 1 << 7;
 
     // -- nyi --
-    MESH_SHADERS            ;
     RAY_TRACING             ;
 }
 
@@ -796,6 +797,12 @@ create_device :: () -> Gpu_Result {
         };
     }
 
+    if requested_optional_features & .MESH_SHADERS != 0 {
+        optional_extensions[Optional_Extension.MESH_SHADERS] = .{
+            name = VK_EXT_MESH_SHADER_EXTENSION_NAME,
+        };
+    }
+
     result: VkResult;
 
     // pick the best physical device
@@ -1005,6 +1012,34 @@ create_device :: () -> Gpu_Result {
         num_queue_families = queue_families_to_create;
     }
 
+    // Identify the available extensions:
+    enabled_extensions: [..] *u8;
+    array_copy(*enabled_extensions, required_extensions);
+    {
+        available_extensions: [..] VkExtensionProperties;
+        extension_count: u32;
+        vkEnumerateDeviceExtensionProperties(vk_physical_device, null, *extension_count, null);
+        array_resize(*available_extensions, extension_count);
+        vkEnumerateDeviceExtensionProperties(vk_physical_device, null, *extension_count, available_extensions.data);
+
+        for * extension_to_check : optional_extensions {
+            if extension_to_check.name == null then continue;
+
+            extension_name := to_string(extension_to_check.name);
+
+            for available_extension: available_extensions {
+                available_extension_name := to_string(available_extension.extensionName);
+                if available_extension_name == extension_name {
+                    array_add(*enabled_extensions, extension_to_check.name);
+                    extension_to_check.supported = true;
+                    break;
+                }
+            }
+        }
+    }
+
+
+
     // create the device:
     {
         chain: *void;
@@ -1023,6 +1058,14 @@ create_device :: () -> Gpu_Result {
             synchronization2 = VK_TRUE,
         };
         chain = *synchronization2;
+
+        if is_optional_ext_supported(.MESH_SHADERS) {
+            mesh_shaders := VkPhysicalDeviceMeshShaderFeaturesEXT.{
+                pNext = chain,
+                meshShader = VK_TRUE,
+            };
+            chain = *mesh_shaders;
+        }
 
         vk12_features := VkPhysicalDeviceVulkan12Features.{
             pNext = chain,
@@ -1070,32 +1113,6 @@ create_device :: () -> Gpu_Result {
             shaderInt64 = enable_feature(requested_optional_features, .SHADER_INT64),
             shaderInt16 = VK_TRUE,
         };
-
-        enabled_extensions: [..] *u8;
-        array_copy(*enabled_extensions, required_extensions);
-        {
-            available_extensions: [..] VkExtensionProperties;
-            extension_count: u32;
-            vkEnumerateDeviceExtensionProperties(vk_physical_device, null, *extension_count, null);
-            array_resize(*available_extensions, extension_count);
-            vkEnumerateDeviceExtensionProperties(vk_physical_device, null, *extension_count, available_extensions.data);
-
-            for * extension_to_check : optional_extensions {
-                if extension_to_check.name == null then continue;
-
-                extension_name := to_string(extension_to_check.name);
-
-                for available_extension: available_extensions {
-                    available_extension_name := to_string(available_extension.extensionName);
-                    if available_extension_name == extension_name {
-                        array_add(*enabled_extensions, extension_to_check.name);
-                        extension_to_check.supported = true;
-                        break;
-                    }
-                }
-            }
-        }
-
 
         create_info := VkDeviceCreateInfo.{
             pNext = chain,
@@ -1169,12 +1186,17 @@ create_device :: () -> Gpu_Result {
         if !loaded_all_pfns then return .FATAL_MISSING_REQUIRED_FEATURE;
 
         // optional extension pfns:
-        #insert #run generate_get_device_proc_addr("vkGetDescriptorSetLayoutSizeEXT");
-        #insert #run generate_get_device_proc_addr("vkGetDescriptorSetLayoutBindingOffsetEXT");
-        #insert #run generate_get_device_proc_addr("vkGetDescriptorSetLayoutBindingOffsetEXT");
-        #insert #run generate_get_device_proc_addr("vkGetDescriptorEXT");
-        #insert #run generate_get_device_proc_addr("vkCmdBindDescriptorBuffersEXT");
-        #insert #run generate_get_device_proc_addr("vkCmdSetDescriptorBufferOffsetsEXT");
+        if is_optional_ext_supported(.DESCRIPTOR_BUFFER) {
+            #insert #run generate_get_device_proc_addr("vkGetDescriptorSetLayoutSizeEXT");
+            #insert #run generate_get_device_proc_addr("vkGetDescriptorSetLayoutBindingOffsetEXT");
+            #insert #run generate_get_device_proc_addr("vkGetDescriptorSetLayoutBindingOffsetEXT");
+            #insert #run generate_get_device_proc_addr("vkGetDescriptorEXT");
+            #insert #run generate_get_device_proc_addr("vkCmdBindDescriptorBuffersEXT");
+            #insert #run generate_get_device_proc_addr("vkCmdSetDescriptorBufferOffsetsEXT");
+        }
+        if is_optional_ext_supported(.MESH_SHADERS) {
+            #insert #run generate_get_device_proc_addr("vkCmdDrawMeshTasksEXT");
+        }
     }
 
     return .SUCCESS;
@@ -1194,6 +1216,7 @@ cpu_allocator: Allocator;
 
 Optional_Extension :: enum {
     DESCRIPTOR_BUFFER :: 0;
+    MESH_SHADERS      :: 1;
 }
 
 Optional_Extension_Info :: struct {
@@ -1267,6 +1290,8 @@ MAX_ATTACHMENTS :: 16;
 
 vkCmdBeginRenderingKHR : PFN_vkCmdBeginRenderingKHR;
 vkCmdEndRenderingKHR : PFN_vkCmdEndRenderingKHR;
+
+vkCmdDrawMeshTasksEXT: PFN_vkCmdDrawMeshTasksEXT;
 
 #if VALIDATION {
     vk_debug_callback_handle: VkDebugReportCallbackEXT;

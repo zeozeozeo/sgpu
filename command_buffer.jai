@@ -235,7 +235,9 @@ gpu_set_scissor :: (cmd: Gpu_Command_Buffer, rect: Rect_2D) {
 
 gpu_dispatch :: (cmd: Gpu_Command_Buffer, data: Gpu_Ptr, dimensions: [3] u32) {
     vk_cmd_buff := get_cmd_buff(cmd);
-    vkCmdPushConstants(vk_cmd_buff, vk_pipeline_layout, .COMPUTE_BIT, 2 * size_of(Gpu_Ptr), size_of(Gpu_Ptr), *data);
+
+    compute_offset := get_stage_offset(.COMPUTE);
+    vkCmdPushConstants(vk_cmd_buff, vk_pipeline_layout, .COMPUTE_BIT, compute_offset, size_of(Gpu_Ptr), *data);
     vkCmdDispatch(vk_cmd_buff, dimensions[0], dimensions[1], dimensions[2]);
 }
 
@@ -246,7 +248,8 @@ gpu_indirect_dispatch :: (cmd: Gpu_Command_Buffer, data: Gpu_Ptr, dimensions_gpu
     result, indirect_buffer, offset := get_buffer_and_offset(dimensions_gpu);
     return_if_error(result);
 
-    vkCmdPushConstants(vk_cmd_buff, vk_pipeline_layout, .COMPUTE_BIT, 2 * size_of(VkDeviceAddress), size_of(VkDeviceAddress), *data);
+    compute_offset := get_stage_offset(.COMPUTE);
+    vkCmdPushConstants(vk_cmd_buff, vk_pipeline_layout, .COMPUTE_BIT, compute_offset, size_of(VkDeviceAddress), *data);
     vkCmdDispatchIndirect(vk_cmd_buff, indirect_buffer, offset.(u64));
 
     return .SUCCESS;
@@ -342,8 +345,10 @@ gpu_end_render_pass :: (cmd: Gpu_Command_Buffer) {
 gpu_draw_instanced :: (cmd: Gpu_Command_Buffer, vertex_data: Gpu_Ptr, pixel_data: Gpu_Ptr, vertex_count: u32, instance_count: u32) {
     vk_cmd_buff := get_cmd_buff(cmd);
 
-    vkCmdPushConstants(vk_cmd_buff, vk_pipeline_layout, .VERTEX_BIT, 0, size_of(VkDeviceAddress), *vertex_data);
-    vkCmdPushConstants(vk_cmd_buff, vk_pipeline_layout, .FRAGMENT_BIT, 1 * size_of(VkDeviceAddress), size_of(VkDeviceAddress), *pixel_data);
+    vertex_offset := get_stage_offset(.VERTEX);
+    pixel_offset := get_stage_offset(.PIXEL);
+    vkCmdPushConstants(vk_cmd_buff, vk_pipeline_layout, .VERTEX_BIT, vertex_offset, size_of(VkDeviceAddress), *vertex_data);
+    vkCmdPushConstants(vk_cmd_buff, vk_pipeline_layout, .FRAGMENT_BIT, pixel_offset, size_of(VkDeviceAddress), *pixel_data);
 
     vkCmdDraw(vk_cmd_buff, vertex_count, instance_count, 0, 0);
 }
@@ -351,8 +356,10 @@ gpu_draw_instanced :: (cmd: Gpu_Command_Buffer, vertex_data: Gpu_Ptr, pixel_data
 gpu_draw_indexed_instanced :: (cmd: Gpu_Command_Buffer, vertex_data: Gpu_Ptr, pixel_data: Gpu_Ptr, index_data: Gpu_Ptr, index_count: u32, instance_count: u32, index_size: u32 = size_of(u32)) -> Gpu_Result {
     vk_cmd_buff := get_cmd_buff(cmd);
 
-    vkCmdPushConstants(vk_cmd_buff, vk_pipeline_layout, .VERTEX_BIT, 0, size_of(VkDeviceAddress), *vertex_data);
-    vkCmdPushConstants(vk_cmd_buff, vk_pipeline_layout, .FRAGMENT_BIT, 1 * size_of(VkDeviceAddress), size_of(VkDeviceAddress), *pixel_data);
+    vertex_offset := get_stage_offset(.VERTEX);
+    pixel_offset := get_stage_offset(.PIXEL);
+    vkCmdPushConstants(vk_cmd_buff, vk_pipeline_layout, .VERTEX_BIT, vertex_offset, size_of(VkDeviceAddress), *vertex_data);
+    vkCmdPushConstants(vk_cmd_buff, vk_pipeline_layout, .FRAGMENT_BIT, pixel_offset, size_of(VkDeviceAddress), *pixel_data);
 
     result, index_buffer, offset := get_buffer_and_offset(index_data);
     return_if_error(result);
@@ -366,6 +373,22 @@ gpu_draw_indexed_instanced :: (cmd: Gpu_Command_Buffer, vertex_data: Gpu_Ptr, pi
 
 gpu_draw_indexed_indirect :: (cmd: Gpu_Command_Buffer, vertex_data: Gpu_Ptr, pixel_data: Gpu_Ptr, index_data: Gpu_Ptr, args: Gpu_Ptr) -> Gpu_Result {
     // #todo
+}
+
+gpu_draw_meshlets :: (cmd: Gpu_Command_Buffer, data: Gpu_Ptr, dimensions: [3] u32) -> Gpu_Result {
+    if !vkCmdDrawMeshTasksEXT then return .ERROR_MISSING_OPTIONAL_EXTENSION;
+
+    vk_cmd_buff := get_cmd_buff(cmd);
+
+    task_offset := get_stage_offset(.TASK);
+    mesh_offset := get_stage_offset(.MESH);
+    pixel_offset := get_stage_offset(.PIXEL);
+    vkCmdPushConstants(vk_cmd_buff, vk_pipeline_layout, .TASK_BIT_EXT, task_offset, size_of(VkDeviceAddress), *data);
+    vkCmdPushConstants(vk_cmd_buff, vk_pipeline_layout, .MESH_BIT_EXT, mesh_offset, size_of(VkDeviceAddress), *data);
+    vkCmdPushConstants(vk_cmd_buff, vk_pipeline_layout, .FRAGMENT_BIT, pixel_offset, size_of(VkDeviceAddress), *data);
+
+    vkCmdDrawMeshTasksEXT(vk_cmd_buff, dimensions[0], dimensions[1], dimensions[2]);
+    return .SUCCESS;
 }
 
 

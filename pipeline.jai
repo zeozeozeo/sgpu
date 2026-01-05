@@ -32,6 +32,110 @@ gpu_create_graphics_pipeline :: (vertex_spirv: [] u8, pixel_spirv: [] u8, raster
         }
     }
 
+    return create_graphics_pipeline(shader_stages, raster_desc);
+}
+
+gpu_create_meshlets_pipeline :: (meshlets_spirv: [] u8, pixel_spirv: [] u8, raster_desc: Gpu_Raster_Desc) -> Gpu_Pipeline {
+    shader_stages := VkPipelineShaderStageCreateInfo.[
+        create_shader_stage(meshlets_spirv, .MESH_BIT_EXT),
+        create_shader_stage(pixel_spirv, .FRAGMENT_BIT)
+    ];
+    defer {
+        for shader_stages {
+            vkDestroyShaderModule(vk_device, it.module, null);
+        }
+    }
+
+    return create_graphics_pipeline(shader_stages, raster_desc);
+}
+
+gpu_free_pipeline :: (pipeline: Gpu_Pipeline) {
+    removed, pipeline := pool_remove(*live_pipelines, pipeline);
+    if removed {
+        vkDestroyPipeline(vk_device, pipeline.vk_pipeline, null);
+    }
+}
+
+#scope_module
+
+Pipeline_Type :: enum {
+    GRAPHICS;
+    COMPUTE;
+}
+
+Shader_Stage :: enum {
+    VERTEX  :: 0x1;
+    PIXEL   :: 0x10;
+    COMPUTE :: 0x20;
+    TASK    :: 0x40;
+    MESH    :: 0x80;
+}
+
+NUM_SHADER_STAGES :: #run enum_values_as_enum(Shader_Stage).count;
+
+Pipeline :: struct {
+    type: Pipeline_Type;
+
+    vk_pipeline: VkPipeline;
+}
+
+// we always use the same push constant block size and same descriptor sets so there is no need to have multiple pipeline layouts.
+vk_pipeline_layout: VkPipelineLayout;
+live_pipelines: Pool(Gpu_Pipeline, Pipeline);
+
+create_global_pipeline_layout :: ()  -> Gpu_Result {
+    push_const_ranges: [NUM_SHADER_STAGES] VkPushConstantRange;
+    ALL_STAGES :: #run enum_values_as_enum(Shader_Stage);
+
+    num_stages: u32 = 0;
+    for ALL_STAGES {
+        if !is_optional_ext_supported(.MESH_SHADERS) && (it == .MESH || it == .TASK) {
+            continue;
+        }
+
+        stage_offset := size_of(VkDeviceAddress).(u32) * num_stages.(u32);
+
+        push_const_ranges[it_index] = .{
+            offset = stage_offset,
+            size = size_of(VkDeviceAddress),
+            stageFlags = it.(VkShaderStageFlags),
+        };
+        stage_offsets[it] = stage_offset;
+
+        num_stages += 1;
+    }
+
+    create_info := VkPipelineLayoutCreateInfo.{
+        setLayoutCount = 1,
+        pSetLayouts = *bindless_set_layout,
+        pushConstantRangeCount = num_stages,
+        pPushConstantRanges = push_const_ranges.data,
+    };
+    vk_result := vkCreatePipelineLayout(vk_device, *create_info, null, *vk_pipeline_layout);
+    return_if_error(vk_result);
+
+    return .SUCCESS;
+}
+
+create_shader_stage :: (spirv: [] u8, stage: VkShaderStageFlagBits) -> VkPipelineShaderStageCreateInfo {
+    create_info := VkShaderModuleCreateInfo.{
+        codeSize = spirv.count.(u32),
+        pCode = spirv.data.(*u32),
+    };
+
+    vk_shader_module: VkShaderModule;
+    vk_result := vkCreateShaderModule(vk_device, *create_info, null, *vk_shader_module);
+    assert_vk_result(vk_result);
+
+    stage_create_info := VkPipelineShaderStageCreateInfo.{
+        stage = stage,
+        module = vk_shader_module,
+        pName = "main",
+    };
+    return stage_create_info;
+}
+
+create_graphics_pipeline :: (shader_stages: [] VkPipelineShaderStageCreateInfo, raster_desc: Gpu_Raster_Desc) -> Gpu_Pipeline {
     attachment_formats: [MAX_ATTACHMENTS] VkFormat;
 
     assert(raster_desc.color_targets.count < attachment_formats.count);
@@ -143,81 +247,13 @@ gpu_create_graphics_pipeline :: (vertex_spirv: [] u8, pixel_spirv: [] u8, raster
     if vk_result != .SUCCESS {
         return 0;
     }
-    
+
     handle := pool_add(*live_pipelines, .{.GRAPHICS, vk_pipeline});
     return handle;
 }
 
-gpu_free_pipeline :: (pipeline: Gpu_Pipeline) {
-    removed, pipeline := pool_remove(*live_pipelines, pipeline);
-    if removed {
-        vkDestroyPipeline(vk_device, pipeline.vk_pipeline, null);
-    }
+get_stage_offset :: inline (stage: Shader_Stage) -> u32 {
+    return stage_offsets[stage];
 }
 
-#scope_module
-
-Pipeline_Type :: enum {
-    GRAPHICS;
-    COMPUTE;
-}
-
-Shader_Stage :: enum {
-    VERTEX  :: 0x1;
-    PIXEL   :: 0x10;
-    COMPUTE :: 0x20;
-    //MESH    :: 0x80;
-}
-
-NUM_SHADER_STAGES :: #run enum_values_as_enum(Shader_Stage).count;
-
-Pipeline :: struct {
-    type: Pipeline_Type;
-
-    vk_pipeline: VkPipeline;
-}
-
-// we always use the same push constant block size and same descriptor sets so there is no need to have multiple pipeline layouts.
-vk_pipeline_layout: VkPipelineLayout;
-live_pipelines: Pool(Gpu_Pipeline, Pipeline);
-
-create_global_pipeline_layout :: ()  -> Gpu_Result {
-    push_const_ranges: [NUM_SHADER_STAGES] VkPushConstantRange;
-    ALL_STAGES :: #run enum_values_as_enum(Shader_Stage);
-    for ALL_STAGES {
-        push_const_ranges[it_index] = .{
-            offset = it_index.(u32) * size_of(VkDeviceAddress),
-            size = size_of(VkDeviceAddress),
-            stageFlags = it.(VkShaderStageFlags),
-        };
-    }
-
-    create_info := VkPipelineLayoutCreateInfo.{
-        setLayoutCount = 1,
-        pSetLayouts = *bindless_set_layout,
-        pushConstantRangeCount = push_const_ranges.count.(u32),
-        pPushConstantRanges = push_const_ranges.data,
-    };
-    vk_result := vkCreatePipelineLayout(vk_device, *create_info, null, *vk_pipeline_layout);
-    return_if_error(vk_result);
-
-    return .SUCCESS;
-}
-
-create_shader_stage :: (spirv: [] u8, stage: VkShaderStageFlagBits) -> VkPipelineShaderStageCreateInfo {
-    create_info := VkShaderModuleCreateInfo.{
-        codeSize = spirv.count.(u32),
-        pCode = spirv.data.(*u32),
-    };
-
-    vk_shader_module: VkShaderModule;
-    vk_result := vkCreateShaderModule(vk_device, *create_info, null, *vk_shader_module);
-    assert_vk_result(vk_result);
-
-    stage_create_info := VkPipelineShaderStageCreateInfo.{
-        stage = stage,
-        module = vk_shader_module,
-        pName = "main",
-    };
-    return stage_create_info;
-}
+stage_offsets: [#run enum_highest_value(Shader_Stage) + 1] u32;

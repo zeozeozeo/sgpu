@@ -8,6 +8,7 @@
     compile_example("01_memory");
     compile_example("02_compute");
     compile_example("03_hello_square");
+    compile_example("04_mesh_shaders");
     compile_example("textures");
 
     copy_module_libraries_to_target("bin");
