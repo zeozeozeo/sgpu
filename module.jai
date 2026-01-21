@@ -34,6 +34,12 @@ Cull :: enum {
     ALL     :: 0x3;
 }
 
+Fill :: enum {
+    FILL    :: 0;
+    LINE    :: 1;
+    POINT   :: 2;
+}
+
 Depth_Flags :: enum_flags u8 {
     NONE    :: 0;
     READ    :: 1 << 0;
@@ -410,6 +416,7 @@ Color_Target :: struct {
 Gpu_Raster_Desc :: struct {
     topology: Topology = .TRIANGLE_LIST;
     cull: Cull = .NONE;
+    fill: Fill = .FILL;
     alpha_to_coverage := false;
     support_dual_source_blending := false;
     sample_count: u8 = 1;

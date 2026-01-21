@@ -171,7 +171,7 @@ create_graphics_pipeline :: (shader_stages: [] VkPipelineShaderStageCreateInfo, 
     rasterization_state := VkPipelineRasterizationStateCreateInfo.{
         depthClampEnable = VK_FALSE,
         rasterizerDiscardEnable = VK_FALSE,
-        polygonMode = .FILL,
+        polygonMode = raster_desc.fill.(VkPolygonMode),
         cullMode = raster_desc.cull.(VkCullModeFlags),
         frontFace = .COUNTER_CLOCKWISE,
         lineWidth = 1.,
