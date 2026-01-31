@@ -46,7 +46,7 @@ gpu_swapchain_resize :: () {
 }
 
 gpu_get_surface_extent :: () -> u32, u32 {
-    return surface_extent.width, surface_extent.height
+    return surface_extent.width, surface_extent.height;
 }
 
 gpu_destroy_swapchain :: () {
